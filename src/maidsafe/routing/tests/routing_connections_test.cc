@@ -19,6 +19,7 @@
 
 #include "asio/use_future.hpp"
 
+#include "maidsafe/common/convert.h"
 #include "maidsafe/common/test.h"
 #include "maidsafe/common/utils.h"
 
@@ -30,14 +31,6 @@ namespace maidsafe {
 namespace routing {
 
 namespace test {
-
-static SerialisedMessage str_to_msg(const std::string& str) {
-  return SerialisedMessage(str.begin(), str.end());
-}
-
-static std::string msg_to_str(const SerialisedMessage& msg) {
-  return std::string(msg.begin(), msg.end());
-}
 
 TEST(ConnectionsTest, FUNC_TwoConnections) {
   bool c1_finished = false;
@@ -58,7 +51,7 @@ TEST(ConnectionsTest, FUNC_TwoConnections) {
     ASSERT_EQ(result.his_address, c2.OurId());
     ASSERT_EQ(result.our_endpoint.port(), port);
 
-    c1.Send(result.his_address, str_to_msg("hello"), [&](asio::error_code error) {
+    c1.Send(result.his_address, convert::ToByteVector("hello"), [&](asio::error_code error) {
       ASSERT_FALSE(error);
       c1.Shutdown();
       c1_finished = true;
@@ -74,7 +67,7 @@ TEST(ConnectionsTest, FUNC_TwoConnections) {
                    [&, result](asio::error_code error, Connections::ReceiveResult recv_result) {
                      ASSERT_FALSE(error);
                      ASSERT_EQ(recv_result.his_address, result.his_address);
-                     ASSERT_EQ(msg_to_str(recv_result.message), "hello");
+                     ASSERT_EQ(convert::ToString(recv_result.message), "hello");
 
                      c2.Shutdown();
                      c2_finished = true;
@@ -112,7 +105,8 @@ TEST(ConnectionsTest, FUNC_TwoConnectionsWithFutures) {
   ASSERT_EQ(connect_result.his_address, c1.OurId());
 
   auto recv_f = c2.Receive(asio::use_future);
-  auto send_f = c1.Send(accept_result.his_address, str_to_msg("hello"), asio::use_future);
+  auto send_f =
+      c1.Send(accept_result.his_address, convert::ToByteVector("hello"), asio::use_future);
 
   send_f.get();
   recv_f.get();

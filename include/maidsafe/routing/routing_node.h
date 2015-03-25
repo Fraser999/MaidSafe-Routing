@@ -56,9 +56,6 @@ namespace routing {
 
 template <typename Child>
 class RoutingNode {
- private:
-  using SendHandler = std::function<void(asio::error_code)>;
-
  public:
   RoutingNode();
   RoutingNode(const RoutingNode&) = delete;
@@ -75,13 +72,14 @@ class RoutingNode {
 
   // will return with the data
   template <typename CompletionToken>
-  GetReturn<CompletionToken> Get(Data::NameAndTypeId name_and_type_id, CompletionToken&& token);
+  GetReturn<CompletionToken> Get(const Data::NameAndTypeId& name_and_type_id,
+                                 CompletionToken&& token);
   // will return with allowed or not (error_code only)
   template <typename CompletionToken>
   PutReturn<CompletionToken> Put(std::shared_ptr<Data> data, CompletionToken&& token);
   // will return with allowed or not (error_code only)
   template <typename FunctorType, typename CompletionToken>
-  PostReturn<CompletionToken> Post(Address to, FunctorType functor, CompletionToken&& token);
+  PostReturn<CompletionToken> Post(const Address& to, FunctorType functor, CompletionToken&& token);
 
   void AddBootstrapContact(Contact bootstrap_contact) {
     bootstrap_handler_.AddBootstrapContacts(std::vector<Contact>(1, bootstrap_contact));
@@ -232,7 +230,7 @@ EndpointPair RoutingNode<Child>::NextEndpointPair() {  // FIXME(Peter)   :06/03/
 
 template <typename Child>
 template <typename CompletionToken>
-GetReturn<CompletionToken> RoutingNode<Child>::Get(Data::NameAndTypeId name_and_type_id,
+GetReturn<CompletionToken> RoutingNode<Child>::Get(const Data::NameAndTypeId& name_and_type_id,
                                                    CompletionToken&& token) {
   GetHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
@@ -262,7 +260,7 @@ PutReturn<CompletionToken> RoutingNode<Child>::Put(std::shared_ptr<Data> data,
   asio::post(asio_service_.service(), [=]() mutable {
     MessageHeader our_header(
         std::make_pair(Destination(OurId()), boost::none),  // send to ClientMgr
-        OurSourceAddress(), ++message_id_, Authority::client);
+        OurSourceAddress(), ++message_id_, Authority::node);
     PutData request(data->TypeId(), Serialise(data));
     // FIXME(dirvine) For client in real put this needs signed :08/02/2015
     auto message(Serialise(our_header, MessageToTag<PutData>::value(), request));
@@ -282,7 +280,7 @@ PutReturn<CompletionToken> RoutingNode<Child>::Put(std::shared_ptr<Data> data,
 
 template <typename Child>
 template <typename FunctorType, typename CompletionToken>
-PostReturn<CompletionToken> RoutingNode<Child>::Post(Address to, FunctorType functor,
+PostReturn<CompletionToken> RoutingNode<Child>::Post(const Address& to, FunctorType functor,
                                                      CompletionToken&& token) {
   PostHandler<CompletionToken> handler(std::forward<decltype(token)>(token));
   asio::async_result<decltype(handler)> result(handler);
